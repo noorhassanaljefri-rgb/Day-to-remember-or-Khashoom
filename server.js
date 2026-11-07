@@ -592,16 +592,10 @@ async function handleRestart(req, res) {
 const LETTER_HASH = hashCode(LETTER_CODE);
 async function handleLetter(req, res) {
   const b = await readBody(req, 4096);
-  const ip = clientIp(req);
-  const v = getVisitor(req, res, true);
-  const keys = ['ip:' + ip, 'vid:' + v.id];
-  const wait = Math.max(...keys.map(lockedFor));
-  if (wait > 0) return json(res, 429, { ok: false, retryAfter: wait });
+  // no attempt limit for the letter: he can try as many times as he likes
   const code = typeof b.code === 'string' ? b.code.slice(0, 200) : '';
   const ok = !!code && safeEq(hashCode(code), LETTER_HASH);
   if (!ok) {
-    recordFail('ip:' + ip, 10, 600_000, 600_000);
-    recordFail('vid:' + v.id, 5, 600_000, 300_000);
     await sleep(300);
     return json(res, 401, { ok: false });
   }
