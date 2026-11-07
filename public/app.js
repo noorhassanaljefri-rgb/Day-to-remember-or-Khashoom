@@ -91,7 +91,7 @@
   let site = null;
   const pages = {};
   let shown = null;
-  let checks = new Set(LS.get('checks', []));
+  let checks = new Set(); // the rules list always starts empty when the site is opened
   const saveChecks = () => LS.set('checks', [...checks]);
   const checksDone = () => site.checklist.length > 0 && site.checklist.every((i) => checks.has(i.id));
 
@@ -501,8 +501,7 @@
       if (LS.get('epoch', null) !== null) { checks = new Set(); saveChecks(); LS.set('accepted', false); LS.set('route', 'invite'); }
       LS.set('epoch', site.epoch);
     }
-    // keep only checks that still exist
-    checks = new Set([...checks].filter((id) => site.checklist.some((i) => i.id === id)));
+    checks = new Set();
     saveChecks();
 
     document.title = site.content.siteTitle;
