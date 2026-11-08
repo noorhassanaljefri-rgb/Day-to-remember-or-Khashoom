@@ -133,7 +133,7 @@ const DEFAULT_CONTENT = {
   wrongCode: 'Not quite! Try again ✦',
   tooManyTries: 'Too many tries… take a little breath and try again soon ✦',
   mapButton: 'Take Me There ✦',
-  mapFooter: /n الي يرجع في كلامه اييش؟؟ ف خليك قد كلامك قبل ما تقفبل الدعوه
+  mapFooter: '/n الي يرجع في كلامه اييش؟؟ ف خليك قد كلامك قبل ما تقفبل الدعوه',
     'Your only job today is to enjoy every little moment.',
   mapClosing: 'Let’s Make Memories ♡',
   letterPopupTitle: 'One Last Secret ♡',
