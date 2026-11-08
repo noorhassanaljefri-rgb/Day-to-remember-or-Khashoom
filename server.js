@@ -580,6 +580,40 @@ function adminState() {
 
 migrate();
 
+/*
+ * The texts written in this file are the source of truth.
+ * Whenever you change DEFAULT_CONTENT, DEFAULT_CHECKLIST or DEFAULT_STOPS here and restart,
+ * the site is updated automatically (secret codes and admin password are never touched).
+ * Note: after such a change, edits made earlier from /admin to the same texts are replaced by this file.
+ */
+function syncDefaults() {
+  const stopFields = DEFAULT_STOPS.map((s) => [s.locked_title, s.unlocked_title, s.emoji, s.activity, s.maps_url, s.departure_time, s.departure_note]);
+  const hash = sha256(JSON.stringify([DEFAULT_CONTENT, DEFAULT_CHECKLIST, stopFields]));
+  if (kvGet('defaultsHash') === hash) return;
+  tx(() => {
+    kvSet('content', { ...kvGet('content', {}), ...DEFAULT_CONTENT });
+
+    const curList = getChecklist().map((r) => [r.title, r.body]);
+    if (JSON.stringify(curList) !== JSON.stringify(DEFAULT_CHECKLIST)) {
+      db.exec('DELETE FROM checklist');
+      DEFAULT_CHECKLIST.forEach(([t, b], i) => db.prepare('INSERT INTO checklist(position,title,body) VALUES(?,?,?)').run(i, t, b));
+      kvSet('epoch', kvGet('epoch', 1) + 1); // the checklist starts fresh in the browser
+    }
+
+    const rows = getStops();
+    DEFAULT_STOPS.forEach((s, i) => {
+      if (!rows[i]) return;
+      db.prepare(
+        'UPDATE stops SET locked_title=?, unlocked_title=?, emoji=?, activity=?, maps_url=?, departure_time=?, departure_note=? WHERE id=?'
+      ).run(s.locked_title, s.unlocked_title, s.emoji, s.activity, s.maps_url, s.departure_time, s.departure_note, rows[i].id);
+    });
+
+    kvSet('defaultsHash', hash);
+  });
+  console.log('Site texts updated from server.js');
+}
+syncDefaults();
+
 /* ------------------------------------------------------------------ */
 /* Public API                                                          */
 /* ------------------------------------------------------------------ */
