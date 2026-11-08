@@ -109,6 +109,11 @@ function tx(fn) {
 /* ------------------------------------------------------------------ */
 /* Defaults (exact copy supplied by the owner)                         */
 /* ------------------------------------------------------------------ */
+
+// Old values (used only to update an existing database safely, without touching edits made in /admin).
+const MAP_FOOTER_V3 = 'Your only job today is to enjoy every little moment.';
+const FIRST_STOP_URL_V3 = 'https://maps.app.goo.gl/CYWooS1UHUG4jnfv8?g_st=ic';
+
 const DEFAULT_CONTENT = {
   siteTitle: 'A Day to Remember ✦',
   date: '11.11.2026',
@@ -133,8 +138,9 @@ const DEFAULT_CONTENT = {
   wrongCode: 'Not quite! Try again ✦',
   tooManyTries: 'Too many tries… take a little breath and try again soon ✦',
   mapButton: 'Take Me There ✦',
-  mapFooter: '/n الي يرجع في كلامه اييش؟؟ ف خليك قد كلامك قبل ما تقفبل الدعوه',
-    'Your only job today is to enjoy every little moment.',
+  mapFooter:
+    'Your only job today is to enjoy every little moment.\n\n' +
+    'الي يرجع في كلامه اييش؟؟ ف خليك قد كلامك قبل ما تقبل الدعوه',
   mapClosing: 'Let’s Make Memories ♡',
   letterPopupTitle: 'One Last Secret ♡',
   letterPopupMessage: 'Something written just for you…',
@@ -251,7 +257,7 @@ const LETTER = {
 const INITIAL_CODES = ['11112026', '2507', '1208', '1508'];
 const CODE_WORDS = ['rose', 'pearl', 'jasmine', 'honey', 'velvet', 'lotus', 'amber', 'moon', 'silk', 'peach', 'dawn', 'cherry'];
 
-const CONTENT_VERSION = 3;
+const CONTENT_VERSION = 5;
 function seed() {
   if (kvGet('seeded')) return;
   const firstCodes = [];
@@ -292,32 +298,50 @@ function migrate() {
   const v = kvGet('contentVersion', 1);
   if (v >= CONTENT_VERSION) return;
   tx(() => {
-   if (v < 2) {
-    const keys = ['rulesHeading', 'rulesSubtitle', 'rulesIntro', 'rulesFooter', 'rulesButton'];
-    const cur = kvGet('content', {});
-    keys.forEach((k) => (cur[k] = DEFAULT_CONTENT[k]));
-    kvSet('content', cur);
-    db.exec('DELETE FROM checklist');
-    DEFAULT_CHECKLIST.forEach(([t, b], i) => db.prepare('INSERT INTO checklist(position,title,body) VALUES(?,?,?)').run(i, t, b));
-    const rows = getStops();
-    if (rows.length === 3) {
-      rows.forEach((r, i) => {
-        const d = DEFAULT_STOPS[i + 1];
-        db.prepare('UPDATE stops SET position=?, maps_url=?, departure_time=?, departure_note=? WHERE id=?').run(i + 1, d.maps_url, d.departure_time, d.departure_note, r.id);
-      });
-      const f = FIRST_STOP;
-      db.prepare(
-        `INSERT INTO stops(position,locked_title,unlocked_title,emoji,activity,description,maps_url,departure_time,departure_note,code_hash)
-         VALUES(0,?,?,?,?,'',?,?,?,'')`
-      ).run(f.locked_title, f.unlocked_title, f.emoji, f.activity, f.maps_url, f.departure_time, f.departure_note);
+    if (v < 2) {
+      const keys = ['rulesHeading', 'rulesSubtitle', 'rulesIntro', 'rulesFooter', 'rulesButton'];
+      const cur = kvGet('content', {});
+      keys.forEach((k) => (cur[k] = DEFAULT_CONTENT[k]));
+      kvSet('content', cur);
+      db.exec('DELETE FROM checklist');
+      DEFAULT_CHECKLIST.forEach(([t, b], i) => db.prepare('INSERT INTO checklist(position,title,body) VALUES(?,?,?)').run(i, t, b));
+      const rows = getStops();
+      if (rows.length === 3) {
+        rows.forEach((r, i) => {
+          const d = DEFAULT_STOPS[i + 1];
+          db.prepare('UPDATE stops SET position=?, maps_url=?, departure_time=?, departure_note=? WHERE id=?').run(i + 1, d.maps_url, d.departure_time, d.departure_note, r.id);
+        });
+        const f = FIRST_STOP;
+        db.prepare(
+          `INSERT INTO stops(position,locked_title,unlocked_title,emoji,activity,description,maps_url,departure_time,departure_note,code_hash)
+           VALUES(0,?,?,?,?,'',?,?,?,'')`
+        ).run(f.locked_title, f.unlocked_title, f.emoji, f.activity, f.maps_url, f.departure_time, f.departure_note);
+      }
+      kvSet('epoch', kvGet('epoch', 1) + 1);
     }
-    kvSet('epoch', kvGet('epoch', 1) + 1);
-   }
-    // v3: the first location gets its own secret code
-    const first = getStops()[0];
-    if (first && !first.code_hash && first.maps_url === FIRST_STOP.maps_url) {
-      db.prepare('UPDATE stops SET code_hash=? WHERE id=?').run(hashCode(INITIAL_CODES[0]), first.id);
-      db.prepare('DELETE FROM unlocks WHERE stop_id=?').run(first.id);
+    if (v < 3) {
+      // v3: the first location gets its own secret code
+      const first = getStops()[0];
+      if (first && !first.code_hash && [FIRST_STOP.maps_url, FIRST_STOP_URL_V3].includes(first.maps_url)) {
+        db.prepare('UPDATE stops SET code_hash=? WHERE id=?').run(hashCode(INITIAL_CODES[0]), first.id);
+        db.prepare('DELETE FROM unlocks WHERE stop_id=?').run(first.id);
+      }
+    }
+    if (v < 5) {
+      // v5: new closing line under the map + new link for the first location.
+      // Each change is applied only if that value was never edited from /admin.
+      const cur = kvGet('content', {});
+      if (!cur.mapFooter || cur.mapFooter === MAP_FOOTER_V3) cur.mapFooter = DEFAULT_CONTENT.mapFooter;
+      // undo an earlier draft that put the same line at the end of the invitation
+      const extra = '\n\nالي يرجع في كلامه اييش؟؟ ف خليك قد كلامك قبل ما تقبل الدعوه';
+      if (typeof cur.inviteMessage === 'string' && cur.inviteMessage === DEFAULT_CONTENT.inviteMessage + extra) {
+        cur.inviteMessage = DEFAULT_CONTENT.inviteMessage;
+      }
+      kvSet('content', cur);
+      const first = getStops()[0];
+      if (first && first.maps_url === FIRST_STOP_URL_V3) {
+        db.prepare('UPDATE stops SET maps_url=? WHERE id=?').run(FIRST_STOP.maps_url, first.id);
+      }
     }
     kvSet('contentVersion', CONTENT_VERSION);
   });
