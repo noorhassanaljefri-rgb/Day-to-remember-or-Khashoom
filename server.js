@@ -127,7 +127,7 @@ const DEFAULT_CONTENT = {
   rulesHeading: 'Before Our day Begins… ♡',
   rulesSubtitle: 'A few little rules for our special day.',
   rulesIntro: 'قبل ما نبدأ، عندنا كم شرط بسيط جدًا (مو قابل للتفاوض طبعًا 🤍).',
-  rulesFooter: 'Your only job today is to enjoy every little moment.',
+  rulesFooter: 'Your only job today is to enjoy every little moment.'+'الي يرجع في كلامه اييش؟؟ ف خليك قد كلامك قبل ما تقبل الدعوه',
   rulesButton: "Let’s Make Memories ♡",
   mapHeading: 'Our Little Adventure ✦',
   stopLabel: 'Stop',
@@ -139,8 +139,7 @@ const DEFAULT_CONTENT = {
   tooManyTries: 'Too many tries… take a little breath and try again soon ✦',
   mapButton: 'Take Me There ✦',
   mapFooter:
-    'Your only job today is to enjoy every little moment.\n\n' +
-    'الي يرجع في كلامه اييش؟؟ ف خليك قد كلامك قبل ما تقبل الدعوه',
+    'Your only job today is to enjoy every little moment.',
   mapClosing: 'Let’s Make Memories ♡',
   letterPopupTitle: 'One Last Secret ♡',
   letterPopupMessage: 'Something written just for you…',
