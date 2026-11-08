@@ -127,7 +127,7 @@ const DEFAULT_CONTENT = {
   rulesHeading: 'Before Our day Begins… ♡',
   rulesSubtitle: 'A few little rules for our special day.',
   rulesIntro: 'قبل ما نبدأ، عندنا كم شرط بسيط جدًا (مو قابل للتفاوض طبعًا 🤍).',
-  rulesIntro:'الي يرجع في كلامه اييش؟؟ ف خليك قد كلامك قبل ما تقبل الدعوه',
+  rulesFooter:'الي يرجع في كلامه اييش؟؟ \n ف خليك قد كلامك قبل ما تقبل الدعوه',
   rulesFooter: 'Your only job today is to enjoy every little moment.',
   rulesButton: "Let’s Make Memories ♡",
   mapHeading: 'Our Little Adventure ✦',
