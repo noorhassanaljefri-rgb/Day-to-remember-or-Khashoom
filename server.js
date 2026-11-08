@@ -179,7 +179,7 @@ const FIRST_STOP = {
   unlocked_title: 'Where It All Begins ♡',
   emoji: '📍',
   activity: 'اللوكيشن الأول',
-  maps_url: 'https://maps.app.goo.gl/CYWooS1UHUG4jnfv8?g_st=ic',
+  maps_url: 'https://maps.app.goo.gl/5zKHvPYc56KrvuyN8?g_st=iw',
   departure_time: '2:00 PM',
   departure_note: 'لازم تكون هناك الساعة ٢',
 };
