@@ -622,8 +622,7 @@ async function handleUnlock(req, res) {
   const ip = clientIp(req);
   const v = getVisitor(req, res, true);
   const keys = ['ip:' + ip, 'vid:' + v.id];
-  const wait = Math.max(...keys.map(lockedFor));
-  if (wait > 0) return json(res, 429, { ok: false, retryAfter: wait });
+  // no lockout: he can try as many times as he likes (Albndari's request)
 
   const stopId = Number(b.stopId);
   const code = typeof b.code === 'string' ? b.code.slice(0, 200) : '';
@@ -631,8 +630,6 @@ async function handleUnlock(req, res) {
   const calc = hashCode(code || '-'); // always hash: uniform timing
   const ok = !!(row && row.code_hash && code && safeEq(calc, row.code_hash));
   if (!ok) {
-    recordFail('ip:' + ip, 10, 600_000, 600_000);
-    recordFail('vid:' + v.id, 5, 600_000, 300_000);
     await sleep(300);
     return json(res, 401, { ok: false });
   }
@@ -845,6 +842,8 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.mp3': 'audio/mpeg',
   '.txt': 'text/plain; charset=utf-8',
 };
 
@@ -855,7 +854,7 @@ function securityHeaders(req, res) {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    "default-src 'self'; script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://i.ytimg.com; connect-src 'self'; media-src 'self' blob:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
   );
   if (isHttps(req)) res.setHeader('Strict-Transport-Security', 'max-age=31536000');
 }
@@ -873,7 +872,17 @@ function serveStatic(req, res, pathname) {
   if (!file.startsWith(PUBLIC_DIR + path.sep)) throw new HttpError(404, 'Not found');
   const type = MIME[path.extname(file).toLowerCase()];
   if (!type || !fs.existsSync(file) || !fs.statSync(file).isFile()) throw new HttpError(404, 'Not found');
-  res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache' });
+  const size = fs.statSync(file).size;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+  if (m && (m[1] || m[2])) { // byte ranges, so iPhone Safari can play the music file
+    let start = m[1] ? parseInt(m[1], 10) : Math.max(0, size - parseInt(m[2], 10));
+    let end = m[1] && m[2] ? Math.min(parseInt(m[2], 10), size - 1) : size - 1;
+    if (start > end || start >= size) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); return res.end(); }
+    res.writeHead(206, { 'Content-Type': type, 'Cache-Control': 'no-cache', 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+    if (req.method === 'HEAD') return res.end();
+    return fs.createReadStream(file, { start, end }).pipe(res);
+  }
+  res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache', 'Accept-Ranges': 'bytes', 'Content-Length': size });
   if (req.method === 'HEAD') return res.end();
   fs.createReadStream(file).pipe(res);
 }
